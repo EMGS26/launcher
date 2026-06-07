@@ -1,7 +1,6 @@
 #include <windows.h>
 #include <chrono>
 #include <cstdio>
-#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -10,11 +9,10 @@ using namespace std;
 
 const string VBOX = "C:\\PROGRA~1\\Oracle\\VirtualBox\\VBoxManage.exe";
 const string VM   = "VM_Kine";
-
-HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+const string IP   = "192.168.0.130";
 
 void setColor(int color) {
-    SetConsoleTextAttribute(console, color);
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }
 
 bool vmIsRunning() {
@@ -32,33 +30,6 @@ bool vmIsRunning() {
     return output.find(VM) != string::npos;
 }
 
-string getIP() {
-    for (int i = 0; i <= 3; i++) {
-        string prop = "/VirtualBox/GuestInfo/Net/" + to_string(i) + "/V4/IP";
-        string cmd  = VBOX + " guestproperty get \"" + VM + "\" " + prop;
-
-        FILE* pipe = _popen(cmd.c_str(), "r");
-        if (!pipe) continue;
-
-        char buffer[256];
-        string output = "";
-        while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            output += buffer;
-        }
-        _pclose(pipe);
-
-        size_t pos = output.find("Value: ");
-        if (pos == string::npos) continue;
-
-        string ip = output.substr(pos + 7);
-        while (!ip.empty() && (ip.back() == '\n' || ip.back() == '\r' || ip.back() == ' ')) {
-            ip.pop_back();
-        }
-        if (!ip.empty()) return ip;
-    }
-    return "";
-}
-
 void startVM() {
     if (vmIsRunning()) {
         setColor(14);
@@ -71,26 +42,17 @@ void startVM() {
     cout << "Demarrage de la VM..." << endl;
     setColor(7);
 
-    string cmd = VBOX + " startvm \"" + VM + "\" --type headless";
-    system(cmd.c_str());
+    system((VBOX + " startvm \"" + VM + "\" --type headless").c_str());
 
-    cout << "En attente de l'IP";
-    string ip = "";
-    for (int i = 0; i < 30; i++) {
+    cout << "En attente du demarrage";
+    for (int i = 0; i < 15; i++) {
         this_thread::sleep_for(chrono::seconds(2));
         cout << "." << flush;
-        ip = getIP();
-        if (!ip.empty()) break;
     }
     cout << endl;
 
-    if (!ip.empty()) {
-        setColor(10);
-        cout << "VM demarree -  http://" << ip << endl;
-    } else {
-        setColor(12);
-        cout << "VM demarree mais IP non recuperee." << endl;
-    }
+    setColor(10);
+    cout << "VM demarree - http://" << IP << endl;
     setColor(7);
 }
 
@@ -106,8 +68,7 @@ void stopVM() {
     cout << "Arret de la VM..." << endl;
     setColor(7);
 
-    string cmd = VBOX + " controlvm \"" + VM + "\" acpipowerbutton";
-    system(cmd.c_str());
+    system((VBOX + " controlvm \"" + VM + "\" acpipowerbutton").c_str());
 
     cout << "En attente de l'arret";
     for (int i = 0; i < 15; i++) {
@@ -144,11 +105,8 @@ void showMenu() {
     if (vmIsRunning()) {
         setColor(10);
         cout << "Etat : EN COURS D'EXECUTION" << endl;
-        string ip = getIP();
-        if (!ip.empty()) {
-            setColor(11);
-            cout << "IP    : " << ip << endl;
-        }
+        setColor(11);
+        cout << "IP    : " << IP << endl;
     } else {
         setColor(12);
         cout << "Etat : ARRETEE" << endl;
